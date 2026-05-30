@@ -43,6 +43,13 @@ def test_record_line_fields():
     assert cols[9] == "0|1:1.0"
     assert cols[10] == "./.:."
 
+def test_non_finite_floats_render_as_missing():
+    # VCF has no nan/inf literal; non-finite floats must serialize to ".".
+    from vcforge.serialize import _fmt_scalar, _fmt_value
+    assert _fmt_scalar(float("nan")) == "."
+    assert _fmt_scalar(float("inf")) == "."
+    assert _fmt_value([float("nan"), 0.5]) == ".,0.5"
+
 def test_pass_filter_renders_PASS():
     doc = _doc()
     rec = doc.records[0]

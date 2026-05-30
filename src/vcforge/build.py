@@ -32,7 +32,13 @@ class VcfBuilder:
     @staticmethod
     def _make_def(id, number, type, description, kind) -> FieldDef:
         if number is None or type is None:
-            return reserved(id, kind)  # KeyError if unknown + undefined
+            try:
+                return reserved(id, kind)
+            except KeyError:
+                raise ValueError(
+                    f"{kind} field {id!r} is not a known reserved field; "
+                    f"pass number= and type= to declare it explicitly"
+                ) from None
         return FieldDef(id, number, type, description or id, kind)
 
     def record(self, chrom, pos, *, ref, alt, ids=None, qual=None,

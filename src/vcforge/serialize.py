@@ -1,4 +1,5 @@
 from __future__ import annotations
+import math
 from typing import Any
 from .genotype import Genotype
 from .model import Record, VcfDocument
@@ -7,6 +8,9 @@ def _fmt_scalar(v: Any) -> str:
     if v is None:
         return "."
     if isinstance(v, float):
+        # VCF has no nan/inf literal; non-finite floats mean "missing".
+        if math.isnan(v) or math.isinf(v):
+            return "."
         return repr(v)
     return str(v)
 
