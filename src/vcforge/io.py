@@ -1,12 +1,17 @@
 from __future__ import annotations
+
 from pathlib import Path
+
 import pysam
+
 from .model import VcfDocument
+
 
 def write_text(doc: VcfDocument, path) -> Path:
     p = Path(path)
     p.write_text(doc.render())
     return p
+
 
 def write_bgzip(doc: VcfDocument, path, *, index: bool = True) -> Path:
     p = Path(path)

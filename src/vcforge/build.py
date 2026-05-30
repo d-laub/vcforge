@@ -1,11 +1,13 @@
 from __future__ import annotations
+
 from typing import Any
+
+from ._spec.fielddef import FieldDef
+from ._spec.number import NumberKind
+from ._spec.reserved import reserved
 from .genotype import Genotype
 from .model import ContigDef, Record, VcfDocument
-from ._spec.fielddef import FieldDef
-from ._spec.number import Number, NumberKind
-from ._spec.types import Type
-from ._spec.reserved import reserved
+
 
 class VcfBuilder:
     def __init__(self, samples, contigs, fileformat: str = "VCFv4.5"):
@@ -17,15 +19,15 @@ class VcfBuilder:
         self._filter_defs: list[tuple[str, str]] = []
         self._records: list[Record] = []
 
-    def info(self, id, number=None, type=None, description=None) -> "VcfBuilder":
+    def info(self, id, number=None, type=None, description=None) -> VcfBuilder:
         self._info_defs[id] = self._make_def(id, number, type, description, "INFO")
         return self
 
-    def fmt(self, id, number=None, type=None, description=None) -> "VcfBuilder":
+    def fmt(self, id, number=None, type=None, description=None) -> VcfBuilder:
         self._format_defs[id] = self._make_def(id, number, type, description, "FORMAT")
         return self
 
-    def filter(self, id: str, description: str) -> "VcfBuilder":
+    def filter(self, id: str, description: str) -> VcfBuilder:
         self._filter_defs.append((id, description))
         return self
 
@@ -41,8 +43,20 @@ class VcfBuilder:
                 ) from None
         return FieldDef(id, number, type, description or id, kind)
 
-    def record(self, chrom, pos, *, ref, alt, ids=None, qual=None,
-               filter=None, gt=None, info=None, **fmt_fields) -> "VcfBuilder":
+    def record(
+        self,
+        chrom,
+        pos,
+        *,
+        ref,
+        alt,
+        ids=None,
+        qual=None,
+        filter=None,
+        gt=None,
+        info=None,
+        **fmt_fields,
+    ) -> VcfBuilder:
         alts = tuple(alt)
         n_alt = len(alts)
 
@@ -60,7 +74,8 @@ class VcfBuilder:
                 for a in geno.alleles:
                     if a is not None and a > n_alt:
                         raise ValueError(
-                            f"allele index {a} out of range (n_alt={n_alt})")
+                            f"allele index {a} out of range (n_alt={n_alt})"
+                        )
                 samples[si]["GT"] = geno
 
         ploidy = max((s["GT"].ploidy for s in samples if "GT" in s), default=2)
@@ -72,11 +87,14 @@ class VcfBuilder:
             fmt_keys.append(key)
             card = fdef.number.cardinality(n_alt, ploidy)
             for si, val in enumerate(per_sample):
-                if card is not None and isinstance(val, (list, tuple)) \
-                        and len(val) != card:
+                if (
+                    card is not None
+                    and isinstance(val, (list, tuple))
+                    and len(val) != card
+                ):
                     raise ValueError(
-                        f"{key} cardinality mismatch: expected {card}, "
-                        f"got {len(val)}")
+                        f"{key} cardinality mismatch: expected {card}, got {len(val)}"
+                    )
                 samples[si][key] = val
 
         info_dict: dict[str, Any] = {}
@@ -86,20 +104,31 @@ class VcfBuilder:
                     raise ValueError(f"INFO field {key!r} not declared")
                 fdef = self._info_defs[key]
                 card = fdef.number.cardinality(n_alt, ploidy)
-                if card is not None and fdef.number.kind is not NumberKind.FLAG \
-                        and isinstance(val, (list, tuple)) and len(val) != card:
+                if (
+                    card is not None
+                    and fdef.number.kind is not NumberKind.FLAG
+                    and isinstance(val, (list, tuple))
+                    and len(val) != card
+                ):
                     raise ValueError(
-                        f"{key} cardinality mismatch: expected {card}, "
-                        f"got {len(val)}")
+                        f"{key} cardinality mismatch: expected {card}, got {len(val)}"
+                    )
                 info_dict[key] = val
 
-        self._records.append(Record(
-            chrom=chrom, pos=pos,
-            ids=tuple(ids) if ids else None,
-            ref=ref, alts=alts, qual=qual,
-            filters=tuple(filter) if filter is not None else None,
-            info=info_dict, fmt_keys=tuple(fmt_keys), samples=tuple(samples),
-        ))
+        self._records.append(
+            Record(
+                chrom=chrom,
+                pos=pos,
+                ids=tuple(ids) if ids else None,
+                ref=ref,
+                alts=alts,
+                qual=qual,
+                filters=tuple(filter) if filter is not None else None,
+                info=info_dict,
+                fmt_keys=tuple(fmt_keys),
+                samples=tuple(samples),
+            )
+        )
         return self
 
     def build(self) -> VcfDocument:
@@ -113,6 +142,11 @@ class VcfBuilder:
             records=tuple(self._records),
         )
 
-    def render(self) -> str: return self.build().render()
-    def truth(self): return self.build().truth()
-    def write(self, path, **kw): return self.build().write(path, **kw)
+    def render(self) -> str:
+        return self.build().render()
+
+    def truth(self):
+        return self.build().truth()
+
+    def write(self, path, **kw):
+        return self.build().write(path, **kw)

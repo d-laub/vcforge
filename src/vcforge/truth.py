@@ -1,22 +1,27 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
+
 import numpy as np
+
 from .genotype import Genotype
 from .model import VcfDocument
 from .variants import record_class
+
 
 @dataclass(frozen=True)
 class GroundTruth:
     samples: tuple[str, ...]
     contigs: tuple[str, ...]
-    pos: np.ndarray                 # (records,) int64, 1-based
+    pos: np.ndarray  # (records,) int64, 1-based
     ref: list[str]
     alts: list[list[str]]
     variant_class: list[str]
-    genotypes: np.ndarray           # (records, samples, ploidy) int32, -1 missing
-    phasing: np.ndarray             # (records, samples) bool (fully phased)
-    info: list[dict]                # per record: id -> decoded value(s)
-    format: list[list[dict]]        # per record, per sample: id -> value(s)
+    genotypes: np.ndarray  # (records, samples, ploidy) int32, -1 missing
+    phasing: np.ndarray  # (records, samples) bool (fully phased)
+    info: list[dict]  # per record: id -> decoded value(s)
+    format: list[list[dict]]  # per record, per sample: id -> value(s)
+
 
 def derive_truth(doc: VcfDocument) -> GroundTruth:
     n_rec = len(doc.records)
@@ -51,6 +56,12 @@ def derive_truth(doc: VcfDocument) -> GroundTruth:
     return GroundTruth(
         samples=doc.samples,
         contigs=tuple(c.id for c in doc.contigs),
-        pos=pos, ref=ref, alts=alts, variant_class=vclass,
-        genotypes=genos, phasing=phasing, info=info, format=fmt,
+        pos=pos,
+        ref=ref,
+        alts=alts,
+        variant_class=vclass,
+        genotypes=genos,
+        phasing=phasing,
+        info=info,
+        format=fmt,
     )

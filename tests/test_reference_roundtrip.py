@@ -1,9 +1,14 @@
-import tempfile, os
-import pysam, pytest
+import os
+import tempfile
+
+import pysam
+import pytest
+
 from vcforge.build import VcfBuilder
 from vcforge.reference import Reference
 
 cyvcf2 = pytest.importorskip("cyvcf2")
+
 
 def _ref(tmp):
     fa = os.path.join(tmp, "ref.fa")
@@ -11,6 +16,7 @@ def _ref(tmp):
         f.write(">chr1\n" + "ACGTACGTAC" * 10 + "\n")
     pysam.faidx(fa)
     return Reference(fa), fa
+
 
 def test_reference_anchored_doc_round_trips():
     tmp = tempfile.mkdtemp()
@@ -27,5 +33,5 @@ def test_reference_anchored_doc_round_trips():
     vf = cyvcf2.VCF(str(path))
     got = [(v.POS, v.REF) for v in vf]
     assert got == expected
-    for (pos1, rref) in expected:
+    for pos1, rref in expected:
         assert ref.seq("chr1", pos1 - 1, len(rref)) == rref

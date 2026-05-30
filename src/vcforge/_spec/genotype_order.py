@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 def genotype_ordering(ploidy: int, n_alleles: int) -> list[tuple[int, ...]]:
     """Ordered genotypes per VCF 4.5 'Number=G' ordering."""
     if ploidy < 1:

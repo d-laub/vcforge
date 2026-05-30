@@ -1,8 +1,12 @@
 from __future__ import annotations
+
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
-from .genotype import Genotype
+from typing import Any
+
 from ._spec.fielddef import FieldDef
+from .genotype import Genotype
+
 
 @dataclass(frozen=True)
 class ContigDef:
@@ -14,22 +18,24 @@ class ContigDef:
             return f"##contig=<ID={self.id}>"
         return f"##contig=<ID={self.id},length={self.length}>"
 
+
 @dataclass(frozen=True)
 class Record:
     chrom: str
-    pos: int                                  # 1-based
-    ids: tuple[str, ...] | None               # None -> "."
+    pos: int  # 1-based
+    ids: tuple[str, ...] | None  # None -> "."
     ref: str
-    alts: tuple[str, ...]                     # may contain "*"
+    alts: tuple[str, ...]  # may contain "*"
     qual: float | None
-    filters: tuple[str, ...] | None           # None -> "."; () -> "PASS"
-    info: Mapping[str, Any]                   # id -> value(s); Flag -> True
-    fmt_keys: tuple[str, ...]                 # FORMAT column order
-    samples: tuple[Mapping[str, Any], ...]    # per-sample: key -> value(s)/Genotype
+    filters: tuple[str, ...] | None  # None -> "."; () -> "PASS"
+    info: Mapping[str, Any]  # id -> value(s); Flag -> True
+    fmt_keys: tuple[str, ...]  # FORMAT column order
+    samples: tuple[Mapping[str, Any], ...]  # per-sample: key -> value(s)/Genotype
 
     @property
     def n_alt(self) -> int:
         return len(self.alts)
+
 
 @dataclass(frozen=True)
 class VcfDocument:
@@ -52,14 +58,17 @@ class VcfDocument:
 
     def render(self) -> str:
         from .serialize import render_document
+
         return render_document(self)
 
     def truth(self):
         from .truth import derive_truth
+
         return derive_truth(self)
 
     def write(self, path, *, bgzip: bool = False, index: bool = False):
         from . import io
+
         if bgzip:
             return io.write_bgzip(self, path, index=index)
         return io.write_text(self, path)

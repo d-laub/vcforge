@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from .fielddef import FieldDef
 from .number import Number
 from .types import Type
@@ -17,10 +18,13 @@ _FORMAT = {
     "GQ": FieldDef("GQ", Number.ONE, Type.INTEGER, "Genotype quality", "FORMAT"),
     "DP": FieldDef("DP", Number.ONE, Type.INTEGER, "Read depth", "FORMAT"),
     "AD": FieldDef("AD", Number.R, Type.INTEGER, "Allelic depths", "FORMAT"),
-    "PL": FieldDef("PL", Number.G, Type.INTEGER, "Phred genotype likelihoods", "FORMAT"),
+    "PL": FieldDef(
+        "PL", Number.G, Type.INTEGER, "Phred genotype likelihoods", "FORMAT"
+    ),
     "GL": FieldDef("GL", Number.G, Type.FLOAT, "Log10 genotype likelihoods", "FORMAT"),
     "PS": FieldDef("PS", Number.ONE, Type.INTEGER, "Phase set", "FORMAT"),
 }
+
 
 def reserved(id: str, kind: str) -> FieldDef:
     table = _INFO if kind == "INFO" else _FORMAT
