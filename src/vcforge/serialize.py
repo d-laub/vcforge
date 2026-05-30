@@ -4,14 +4,26 @@ from typing import Any
 from .genotype import Genotype
 from .model import Record, VcfDocument
 
+# Order matters: '%' must be replaced first.
+_PERCENT = [("%", "%25"), (":", "%3A"), (";", "%3B"), ("=", "%3D"),
+            (",", "%2C"), ("\r", "%0D"), ("\n", "%0A"), ("\t", "%09")]
+
+def _encode(s: str) -> str:
+    for ch, rep in _PERCENT:
+        s = s.replace(ch, rep)
+    return s
+
 def _fmt_scalar(v: Any) -> str:
     if v is None:
         return "."
+    if isinstance(v, bool):
+        return str(int(v))
     if isinstance(v, float):
-        # VCF has no nan/inf literal; non-finite floats mean "missing".
         if math.isnan(v) or math.isinf(v):
             return "."
         return repr(v)
+    if isinstance(v, str):
+        return _encode(v)
     return str(v)
 
 def _fmt_value(v: Any) -> str:

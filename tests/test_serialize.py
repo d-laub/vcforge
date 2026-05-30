@@ -50,6 +50,16 @@ def test_non_finite_floats_render_as_missing():
     assert _fmt_scalar(float("inf")) == "."
     assert _fmt_value([float("nan"), 0.5]) == ".,0.5"
 
+def test_percent_encoding_of_reserved_chars():
+    from vcforge.serialize import _encode, _fmt_scalar
+    assert _encode("a;b") == "a%3Bb"
+    assert _encode("a:b,c=d") == "a%3Ab%2Cc%3Dd"
+    assert _encode("100%") == "100%25"
+    assert _encode("x\ty\n") == "x%09y%0A"
+    assert _fmt_scalar("a;b") == "a%3Bb"
+    assert _fmt_scalar(5) == "5"
+    assert _fmt_scalar(0.5) == "0.5"
+
 def test_pass_filter_renders_PASS():
     doc = _doc()
     rec = doc.records[0]
