@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 import pysam
 
 _BASES = "ACGT"
+
 
 class Reference:
     """Thin pysam.FastaFile wrapper that draws spec-correct REF/ALT.
@@ -19,8 +21,9 @@ class Reference:
     def seq(self, contig: str, start0: int, length: int) -> str:
         return self._fa.fetch(contig, start0, start0 + length).upper()
 
-    def draw_ref_alt(self, contig, pos0, klass, *, alt_index=1,
-                     del_len=1, ins_seq="T", mnp_len=2):
+    def draw_ref_alt(
+        self, contig, pos0, klass, *, alt_index=1, del_len=1, ins_seq="T", mnp_len=2
+    ):
         if klass == "SNP":
             r = self.base(contig, pos0)
             alt = _BASES[(_BASES.index(r) + alt_index) % 4]

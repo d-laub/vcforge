@@ -1,7 +1,10 @@
 from __future__ import annotations
+
 import math
 from dataclasses import dataclass
 from enum import Enum
+from typing import ClassVar
+
 
 class NumberKind(str, Enum):
     FIXED = "FIXED"
@@ -11,13 +14,23 @@ class NumberKind(str, Enum):
     DOT = "."
     FLAG = "FLAG"
 
+
 @dataclass(frozen=True)
 class Number:
     kind: NumberKind
     count: int | None = None  # set only for FIXED
 
+    # Canonical singletons, assigned after the class body. Declared as ClassVar
+    # so type checkers know these attributes exist on Number.
+    ONE: ClassVar[Number]
+    A: ClassVar[Number]
+    R: ClassVar[Number]
+    G: ClassVar[Number]
+    DOT: ClassVar[Number]
+    FLAG: ClassVar[Number]
+
     @classmethod
-    def fixed(cls, n: int) -> "Number":
+    def fixed(cls, n: int) -> Number:
         if n < 0:
             raise ValueError("fixed Number must be >= 0")
         return cls(NumberKind.FIXED, n)
@@ -43,6 +56,7 @@ class Number:
             n_alleles = n_alt + 1
             return math.comb(n_alleles + ploidy - 1, ploidy)
         return None  # DOT / variable
+
 
 Number.ONE = Number(NumberKind.FIXED, 1)
 Number.A = Number(NumberKind.A)

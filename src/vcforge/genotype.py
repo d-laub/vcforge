@@ -1,16 +1,18 @@
 from __future__ import annotations
+
 import re
 from dataclasses import dataclass
 
 _TOKEN_RE = re.compile(r"([|/])")
 
+
 @dataclass(frozen=True)
 class Genotype:
-    alleles: tuple[int | None, ...]   # None == missing allele
-    phased: tuple[bool, ...]          # one per separator; len == len(alleles) - 1
+    alleles: tuple[int | None, ...]  # None == missing allele
+    phased: tuple[bool, ...]  # one per separator; len == len(alleles) - 1
 
     @classmethod
-    def parse(cls, s: str) -> "Genotype":
+    def parse(cls, s: str) -> Genotype:
         parts = _TOKEN_RE.split(s)  # "0|1" -> ["0","|","1"]
         alleles: list[int | None] = []
         phased: list[bool] = []
@@ -33,7 +35,7 @@ class Genotype:
         out = ["." if a is None else str(a) for a in self.alleles]
         seps = ["|" if p else "/" for p in self.phased]
         chars: list[str] = [out[0]]
-        for sep, allele in zip(seps, out[1:]):
+        for sep, allele in zip(seps, out[1:], strict=True):
             chars.append(sep)
             chars.append(allele)
         return "".join(chars)

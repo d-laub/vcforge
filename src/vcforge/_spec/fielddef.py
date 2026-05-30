@@ -1,11 +1,14 @@
 from __future__ import annotations
+
 import re
 from dataclasses import dataclass
+
 from .number import Number, NumberKind
 from .types import Type
 
 _ID_RE = re.compile(r"^([A-Za-z_][0-9A-Za-z_.]*|1000G)$")
 _KINDS = ("INFO", "FORMAT")
+
 
 @dataclass(frozen=True)
 class FieldDef:

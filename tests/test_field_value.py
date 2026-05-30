@@ -1,10 +1,13 @@
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from vcforge import strategies as S
+from vcforge._spec.fielddef import FieldDef
 from vcforge._spec.number import Number
 from vcforge._spec.types import Type
-from vcforge._spec.fielddef import FieldDef
 
 _SAFE = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+
 
 @settings(max_examples=50)
 @given(st.data())
@@ -13,17 +16,22 @@ def test_field_value_cardinality_and_type(data):
     v = data.draw(S.field_value(fd, n_alt=1, ploidy=2))
     assert isinstance(v, list) and len(v) == 2
     import numpy as np
+
     for x in v:
         assert isinstance(x, float)
         assert np.float32(x) == x
 
+
 def test_field_value_flag_is_true():
     fd = FieldDef("XF", Number.FLAG, Type.FLAG, "x", "INFO")
     import hypothesis
+
     @hypothesis.given(hypothesis.strategies.data())
     def inner(data):
         assert data.draw(S.field_value(fd, n_alt=2, ploidy=2)) is True
+
     inner()
+
 
 @settings(max_examples=30)
 @given(st.data())
@@ -32,6 +40,7 @@ def test_field_value_G_count_multiallelic(data):
     v = data.draw(S.field_value(fd, n_alt=2, ploidy=2))
     assert len(v) == 6
     assert all(isinstance(x, int) for x in v)
+
 
 @settings(max_examples=30)
 @given(st.data())

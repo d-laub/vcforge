@@ -1,17 +1,30 @@
 from __future__ import annotations
+
 import math
+from collections.abc import Mapping
 from typing import Any
+
 from .genotype import Genotype
 from .model import Record, VcfDocument
 
 # Order matters: '%' must be replaced first.
-_PERCENT = [("%", "%25"), (":", "%3A"), (";", "%3B"), ("=", "%3D"),
-            (",", "%2C"), ("\r", "%0D"), ("\n", "%0A"), ("\t", "%09")]
+_PERCENT = [
+    ("%", "%25"),
+    (":", "%3A"),
+    (";", "%3B"),
+    ("=", "%3D"),
+    (",", "%2C"),
+    ("\r", "%0D"),
+    ("\n", "%0A"),
+    ("\t", "%09"),
+]
+
 
 def _encode(s: str) -> str:
     for ch, rep in _PERCENT:
         s = s.replace(ch, rep)
     return s
+
 
 def _fmt_scalar(v: Any) -> str:
     if v is None:
@@ -26,12 +39,14 @@ def _fmt_scalar(v: Any) -> str:
         return _encode(v)
     return str(v)
 
+
 def _fmt_value(v: Any) -> str:
     if isinstance(v, (list, tuple)):
         if len(v) == 0:
             return "."
         return ",".join(_fmt_scalar(x) for x in v)
     return _fmt_scalar(v)
+
 
 def _render_info(rec: Record) -> str:
     if not rec.info:
@@ -46,7 +61,8 @@ def _render_info(rec: Record) -> str:
             parts.append(f"{key}={_fmt_value(val)}")
     return ";".join(parts) if parts else "."
 
-def _render_sample(rec: Record, sample: dict) -> str:
+
+def _render_sample(rec: Record, sample: Mapping[str, Any]) -> str:
     vals: list[str] = []
     for key in rec.fmt_keys:
         v = sample.get(key)
@@ -55,6 +71,7 @@ def _render_sample(rec: Record, sample: dict) -> str:
         else:
             vals.append(_fmt_value(v))
     return ":".join(vals)
+
 
 def _render_record(rec: Record) -> str:
     ids = ";".join(rec.ids) if rec.ids else "."
@@ -66,13 +83,13 @@ def _render_record(rec: Record) -> str:
         filt = "PASS"
     else:
         filt = ";".join(rec.filters)
-    cols = [rec.chrom, str(rec.pos), ids, rec.ref, alt, qual, filt,
-            _render_info(rec)]
+    cols = [rec.chrom, str(rec.pos), ids, rec.ref, alt, qual, filt, _render_info(rec)]
     if rec.fmt_keys:
         cols.append(":".join(rec.fmt_keys))
         for s in rec.samples:
             cols.append(_render_sample(rec, s))
     return "\t".join(cols)
+
 
 def render_document(doc: VcfDocument) -> str:
     lines = [f"##fileformat={doc.fileformat}"]
