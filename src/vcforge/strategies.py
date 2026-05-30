@@ -82,6 +82,59 @@ def field_value(draw, fielddef: FieldDef, n_alt: int, ploidy: int):
         card = draw(st.integers(min_value=1, max_value=3))
     return [draw(_scalar_value(fielddef.type)) for _ in range(card)]
 
+def _matrix_field_defs():
+    """One INFO and one FORMAT FieldDef per classic combo (Flag only as INFO)."""
+    info_defs, format_defs = [], []
+    numbers = [("1", Number.ONE), ("2", Number.fixed(2)), ("A", Number.A),
+               ("R", Number.R), ("G", Number.G), ("D", Number.DOT)]
+    types = [("i", Type.INTEGER), ("f", Type.FLOAT),
+             ("c", Type.CHARACTER), ("s", Type.STRING)]
+    for nk, num in numbers:
+        for tk, typ in types:
+            info_defs.append(FieldDef(f"I{nk}{tk}", num, typ, "x", "INFO"))
+            format_defs.append(FieldDef(f"F{nk}{tk}", num, typ, "x", "FORMAT"))
+    info_defs.append(FieldDef("IFLAG", Number.FLAG, Type.FLAG, "x", "INFO"))
+    return info_defs, format_defs
+
+MATRIX_INFO_DEFS, MATRIX_FORMAT_DEFS = _matrix_field_defs()
+
+@st.composite
+def documents_with_fields(draw, max_samples: int = 3, max_records: int = 3,
+                          max_alt: int = 3):
+    n_samples = draw(st.integers(1, max_samples))
+    samples = [f"s{i}" for i in range(n_samples)]
+    ploidy = draw(st.integers(1, 2))
+    b = VcfBuilder(samples=samples, contigs=[("chr1", 100000)])
+    b.fmt("GT")
+    for fd in MATRIX_INFO_DEFS:
+        b.info(fd.id, fd.number, fd.type)
+    for fd in MATRIX_FORMAT_DEFS:
+        b.fmt(fd.id, fd.number, fd.type)
+
+    n_rec = draw(st.integers(1, max_records))
+    pos = 1000
+    for _ in range(n_rec):
+        n_alt = draw(st.integers(1, max_alt))
+        alts = []
+        for j in range(n_alt):
+            klass = draw(st.sampled_from(ALL_VARIANT_CLASSES))
+            if klass == "SPANNING_DEL" and j != n_alt - 1:
+                klass = "SNP"
+            _, alt = draw(_ref_alt(klass))
+            alts.append(alt)
+        ref = draw(st.sampled_from(_BASES))
+        gts = [draw(genotypes(ploidy, n_alt=n_alt)) for _ in samples]
+        info = {}
+        for fd in MATRIX_INFO_DEFS:
+            info[fd.id] = draw(field_value(fd, n_alt=n_alt, ploidy=ploidy))
+        fmt = {}
+        for fd in MATRIX_FORMAT_DEFS:
+            fmt[fd.id] = [draw(field_value(fd, n_alt=n_alt, ploidy=ploidy))
+                          for _ in samples]
+        b.record("chr1", pos, ref=ref, alt=alts, gt=gts, info=info, **fmt)
+        pos += draw(st.integers(1, 50))
+    return b.build()
+
 @st.composite
 def documents(draw, max_samples: int = 3, max_records: int = 4, max_alt: int = 1):
     n_samples = draw(st.integers(1, max_samples))
