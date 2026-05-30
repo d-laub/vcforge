@@ -49,7 +49,16 @@ constructs the VCF, it knows the decoded semantics by construction.
    `bcftools norm`/`consensus` oracle accepts the output.
 7. **Classic Number vocabulary, exhaustive.** Cover `1`, fixed-N, `A`, `R`, `G`,
    `.`, and `0`(Flag) across all Types, with correct per-record cardinality.
-   Localized-allele codes (`LA`/`LR`/`LG`) are out of scope.
+   Localized-allele codes (`LA`/`LR`/`LG`) are out of scope. **Field *names* are
+   secondary** — a curated subset of reserved fields suffices; the priority is
+   exhaustive coverage of the Number×Type matrix.
+8. **Variant-class coverage is first-class** (see below), not a toggle
+   afterthought: SNP, MNP, all indel classes, complex/non-atomic substitutions,
+   and spanning deletions are explicit, individually-addressable generation
+   targets with their own truth.
+9. **Small outputs, optimized hot path** (see Performance): all generated data is
+   tiny, and the Hypothesis strategy path is engineered to avoid the slowness
+   that complex-type fuzzing usually incurs.
 
 ## Spec grounding (VCF 4.5)
 
@@ -80,7 +89,56 @@ Modeled against
   any order; `#CHROM ... INFO [FORMAT samples...]` header line; UTF-8, no BOM;
   percent-encoding for reserved characters.
 
-## Architecture
+## Variant-class coverage (first-class)
+
+`REF`/`ALT` generation is organized around an explicit, individually-addressable
+taxonomy. Each class is its own strategy and builder shortcut, and each carries
+unambiguous truth (REF length, ALT length, and the implied edit). Reference-aware
+mode draws REF from the sequence; reference-free mode constructs abstract bases.
+
+| Class | Shape (REF→ALT) | Example | Notes |
+|-------|-----------------|---------|-------|
+| **SNP** | 1→1, differ | `A→T` | |
+| **MNP** | k→k, k>1, every base may differ | `AC→GT` | non-atomic substitution |
+| **Insertion** | anchor base + inserted seq | `A→ACGT` | left-anchored per spec |
+| **Deletion** | anchor + deleted seq → anchor | `ACGT→A` | |
+| **Complex / delins (non-atomic)** | m→n, m≠n, m,n≥1, not pure ins/del | `AC→GTA` | combined substitution+indel |
+| **Spanning deletion** | ALT = `*` | `A→*` | overlapping upstream deletion |
+| **Multiallelic** | multiple ALTs of mixed classes at one site | `G→A,C` / `GAT→A,GA` | drives `A`/`R`/`G` cardinality |
+
+"Non-atomic" = variants that are not minimal/left-aligned single edits (MNPs and
+delins), which exercise the consumers' normalization and span logic. The
+generator can emit them pre- or post-normalization; reference-aware output stays
+acceptable to `bcftools norm`. Strategies expose per-class weights so a test can
+say "only indels" or "mix all classes."
+
+## Performance
+
+All generated data is intentionally **small** — bounded sample counts, ploidy,
+record counts, and allele/sequence lengths. There is no use case for large
+outputs; size bounds are tight defaults, not just caps.
+
+Hypothesis fuzzing over complex types is historically slow, so the strategy path
+is engineered to avoid the usual culprits:
+
+- **Construct, never reject.** No `.filter()` / `assume()` rejection sampling on
+  the hot path — every draw is mapped to a valid construction directly (e.g. draw
+  ploidy and allele count, then *compute* genotypes, rather than draw-and-reject).
+- **Flat, non-recursive strategies.** Avoid recursive/deeply-nested strategies;
+  prefer flat integer/index draws composed into structures, which shrink and
+  generate far faster.
+- **Matrix coverage via parametrization, not search.** Exhaustive Number×Type and
+  variant-class coverage is driven by `@pytest.mark.parametrize` over enumerated
+  combos, reserving Hypothesis for the *values within* a fixed combo — this keeps
+  each Hypothesis search space small and fast instead of asking it to explore the
+  whole matrix.
+- **Validation-skipping fast constructor.** The eager builder validation runs for
+  the user-facing builder; the strategy path uses an internal constructor that
+  skips re-validation, since strategies are valid by construction. The model's hot
+  path stays allocation-light.
+- **Benchmark gate.** The suite includes a micro-benchmark asserting that drawing
+  + serializing + deriving truth for a representative document stays within a
+  target budget, so regressions are caught.
 
 One immutable **document model** is the hub. The builder and the Hypothesis
 strategies are two *front-ends* producing the model; the serializer and the
@@ -195,5 +253,8 @@ cross-checking.
   `GroundTruth` matches what the current hand-coded numpy literals assert.
 - A GVL-style reference-anchored VCF generates cleanly through `bcftools
   norm`/`consensus`.
-- A Hypothesis property test exhaustively exercises the classic Number×Type
-  matrix and round-trips through pysam with truth agreement.
+- The classic Number×Type matrix and every variant class (SNP, MNP, insertion,
+  deletion, complex/non-atomic, spanning deletion, multiallelic) are each covered
+  by parametrized cases that round-trip through pysam with truth agreement.
+- The benchmark gate passes: draw + serialize + derive-truth for a representative
+  document stays within the target budget.
