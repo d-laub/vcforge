@@ -15,6 +15,10 @@ permissions: {}
 jobs:
   # Hard gate: the full test matrix must pass before anything is released.
   test:
+    # The reusable workflow requests contents: read; the caller must grant at
+    # least that, since top-level permissions are locked to {}.
+    permissions:
+      contents: read
     uses: ./.github/workflows/test.yml
 
   release:
