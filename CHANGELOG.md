@@ -1,3 +1,9 @@
+## v0.2.1 (2026-05-31)
+
+### Fix
+
+- declare hypothesis as a runtime dependency
+
 ## v0.2.0 (2026-05-31)
 
 ### Feat
