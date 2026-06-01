@@ -1,5 +1,7 @@
 """vcfixture — generate small VCF test data with decoded ground truth."""
 
+from importlib import metadata
+
 from . import strategies
 from ._spec.number import Number
 from ._spec.types import Type
@@ -8,7 +10,7 @@ from .genotype import Genotype
 from .reference import Reference, ReferenceBuilder, ReferenceSpec, RepeatFeature
 from .truth import GroundTruth
 
-__version__ = "0.1.0"
+__version__ = metadata.version("vcfixture")
 __all__ = [
     "VcfBuilder",
     "Genotype",
