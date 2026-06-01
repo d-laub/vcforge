@@ -136,3 +136,29 @@ def test_referencespec_repr_pretty_no_full_sequence():
     out = pretty(spec)
     assert out == "ReferenceSpec(contigs=[chr1:200bp], repeats=0)"
     assert "ACGTACGT" not in out
+
+
+def test_full_document_pretty_is_bounded():
+    # The original bug: a VcfDocument printed ~2k lines via Hypothesis's
+    # pretty-printer. With compact reprs + _repr_pretty_, the whole document
+    # collapses to a single short line.
+    gt = FieldDef(
+        id="GT",
+        number=Number.ONE,
+        type=Type.STRING,
+        description="Genotype",
+        kind="FORMAT",
+    )
+    doc = VcfDocument(
+        fileformat="VCFv4.5",
+        info_defs=(),
+        format_defs=(gt,),
+        filter_defs=(),
+        contigs=(ContigDef("chr1", 200),),
+        samples=("s0", "s1"),
+        records=tuple(_make_record() for _ in range(5)),
+    )
+    out = pretty(doc)
+    assert out == "VcfDocument(VCFv4.5 samples=2 records=5 info=0 format=1)"
+    assert "ONE=Number" not in out
+    assert len(out) < 200
