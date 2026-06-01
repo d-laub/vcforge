@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from enum import Enum
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 
 class NumberKind(str, Enum):
@@ -20,14 +20,17 @@ class Number:
     kind: NumberKind
     count: int | None = None  # set only for FIXED
 
-    # Canonical singletons, assigned after the class body. Declared as ClassVar
-    # so type checkers know these attributes exist on Number.
-    ONE: ClassVar[Number]
-    A: ClassVar[Number]
-    R: ClassVar[Number]
-    G: ClassVar[Number]
-    DOT: ClassVar[Number]
-    FLAG: ClassVar[Number]
+    # Canonical singletons, assigned after the class body. Declared under
+    # TYPE_CHECKING so type checkers know these attributes exist on Number,
+    # while keeping them out of __dataclass_fields__ at runtime (otherwise
+    # field-walking pretty-printers recurse into them — see tests/test_repr.py).
+    if TYPE_CHECKING:
+        ONE: ClassVar[Number]
+        A: ClassVar[Number]
+        R: ClassVar[Number]
+        G: ClassVar[Number]
+        DOT: ClassVar[Number]
+        FLAG: ClassVar[Number]
 
     @classmethod
     def fixed(cls, n: int) -> Number:
