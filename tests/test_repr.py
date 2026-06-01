@@ -4,6 +4,7 @@ from vcfixture._spec.fielddef import FieldDef
 from vcfixture._spec.number import Number
 from vcfixture._spec.types import Type
 from vcfixture.genotype import Genotype
+from vcfixture.model import ContigDef, Record, VcfDocument
 
 
 def test_number_singletons_not_in_dataclass_fields():
@@ -55,3 +56,62 @@ def test_genotype_repr_compact():
     assert repr(Genotype((0, 1), (True,))) == "Genotype(0|1)"
     assert repr(Genotype((0, 1), (False,))) == "Genotype(0/1)"
     assert repr(Genotype((None, None), (False,))) == "Genotype(./.)"
+
+
+def test_contigdef_repr_compact():
+    assert repr(ContigDef(id="chr1", length=200)) == "ContigDef(chr1:200)"
+    assert repr(ContigDef(id="chr1")) == "ContigDef(chr1)"
+
+
+def _make_record(alts=("T", "G"), labels=frozenset()):
+    return Record(
+        chrom="chr1",
+        pos=5,
+        ids=None,
+        ref="A",
+        alts=alts,
+        qual=None,
+        filters=None,
+        info={},
+        fmt_keys=("GT",),
+        samples=(
+            {"GT": Genotype((0, 1), (True,))},
+            {"GT": Genotype((1, 1), (True,))},
+        ),
+        labels=labels,
+    )
+
+
+def test_record_repr_compact():
+    rec = _make_record(labels=frozenset({"multiallelic", "snp"}))
+    assert repr(rec) == "Record(chr1:5 A>T,G ×2 [multiallelic,snp])"
+
+
+def test_record_repr_no_labels():
+    rec = _make_record(labels=frozenset())
+    assert repr(rec) == "Record(chr1:5 A>T,G ×2)"
+
+
+def test_record_repr_empty_alts():
+    rec = _make_record(alts=(), labels=frozenset())
+    assert repr(rec) == "Record(chr1:5 A>. ×2)"
+
+
+def test_vcfdocument_repr_compact():
+    gt = FieldDef(
+        id="GT",
+        number=Number.ONE,
+        type=Type.STRING,
+        description="Genotype",
+        kind="FORMAT",
+    )
+    doc = VcfDocument(
+        fileformat="VCFv4.5",
+        info_defs=(),
+        format_defs=(gt,),
+        filter_defs=(),
+        contigs=(),
+        samples=("s0", "s1"),
+        records=(_make_record(), _make_record()),
+    )
+    assert repr(doc) == "VcfDocument(VCFv4.5 samples=2 records=2 info=0 format=1)"
