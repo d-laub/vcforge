@@ -1,6 +1,8 @@
 from hypothesis.vendor.pretty import pretty
 
+from vcfixture._spec.fielddef import FieldDef
 from vcfixture._spec.number import Number
+from vcfixture._spec.types import Type
 
 
 def test_number_singletons_not_in_dataclass_fields():
@@ -30,3 +32,19 @@ def test_number_repr_compact():
 def test_number_pretty_uses_compact_repr():
     # _repr_pretty_ must route Hypothesis's printer through __repr__.
     assert pretty(Number.G) == "Number(G)"
+
+
+def test_fielddef_repr_compact():
+    gt = FieldDef(
+        id="GT",
+        number=Number.ONE,
+        type=Type.STRING,
+        description="Genotype",
+        kind="FORMAT",
+    )
+    assert repr(gt) == "FieldDef(GT FORMAT Number=1 Type=String)"
+
+    dp = FieldDef(
+        id="DP", number=Number.ONE, type=Type.INTEGER, description="Depth", kind="INFO"
+    )
+    assert repr(dp) == "FieldDef(DP INFO Number=1 Type=Integer)"
