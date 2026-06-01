@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from ._repr import CompactRepr, override
 from ._spec.fielddef import FieldDef
 from ._typing import StrPath
 from .genotype import Genotype
@@ -14,9 +15,15 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class ContigDef:
+class ContigDef(CompactRepr):
     id: str
     length: int | None = None
+
+    @override
+    def __repr__(self) -> str:
+        if self.length is None:
+            return f"ContigDef({self.id})"
+        return f"ContigDef({self.id}:{self.length})"
 
     def header_line(self) -> str:
         if self.length is None:
@@ -25,7 +32,7 @@ class ContigDef:
 
 
 @dataclass(frozen=True)
-class Record:
+class Record(CompactRepr):
     chrom: str
     pos: int  # 1-based
     ids: tuple[str, ...] | None  # None -> "."
@@ -38,13 +45,21 @@ class Record:
     samples: tuple[Mapping[str, Any], ...]  # per-sample: key -> value(s)/Genotype
     labels: frozenset[str] = frozenset()
 
+    @override
+    def __repr__(self) -> str:
+        alts = ",".join(self.alts) if self.alts else "."
+        out = f"Record({self.chrom}:{self.pos} {self.ref}>{alts} ×{len(self.samples)}"
+        if self.labels:
+            out += f" [{','.join(sorted(self.labels))}]"
+        return out + ")"
+
     @property
     def n_alt(self) -> int:
         return len(self.alts)
 
 
 @dataclass(frozen=True)
-class VcfDocument:
+class VcfDocument(CompactRepr):
     fileformat: str
     info_defs: tuple[FieldDef, ...]
     format_defs: tuple[FieldDef, ...]
@@ -52,6 +67,14 @@ class VcfDocument:
     contigs: tuple[ContigDef, ...]
     samples: tuple[str, ...]
     records: tuple[Record, ...]
+
+    @override
+    def __repr__(self) -> str:
+        return (
+            f"VcfDocument({self.fileformat} samples={len(self.samples)} "
+            f"records={len(self.records)} info={len(self.info_defs)} "
+            f"format={len(self.format_defs)})"
+        )
 
     def max_ploidy(self) -> int:
         p = 1

@@ -3,7 +3,9 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from enum import Enum
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+from .._repr import CompactRepr, override
 
 
 class NumberKind(str, Enum):
@@ -16,18 +18,21 @@ class NumberKind(str, Enum):
 
 
 @dataclass(frozen=True)
-class Number:
+class Number(CompactRepr):
     kind: NumberKind
     count: int | None = None  # set only for FIXED
 
-    # Canonical singletons, assigned after the class body. Declared as ClassVar
-    # so type checkers know these attributes exist on Number.
-    ONE: ClassVar[Number]
-    A: ClassVar[Number]
-    R: ClassVar[Number]
-    G: ClassVar[Number]
-    DOT: ClassVar[Number]
-    FLAG: ClassVar[Number]
+    # Canonical singletons, assigned after the class body. Declared under
+    # TYPE_CHECKING so type checkers know these attributes exist on Number,
+    # while keeping them out of __dataclass_fields__ at runtime (otherwise
+    # field-walking pretty-printers recurse into them — see tests/test_repr.py).
+    if TYPE_CHECKING:
+        ONE: ClassVar[Number]
+        A: ClassVar[Number]
+        R: ClassVar[Number]
+        G: ClassVar[Number]
+        DOT: ClassVar[Number]
+        FLAG: ClassVar[Number]
 
     @classmethod
     def fixed(cls, n: int) -> Number:
@@ -41,6 +46,16 @@ class Number:
         if self.kind is NumberKind.FLAG:
             return "0"
         return self.kind.value
+
+    @override
+    def __repr__(self) -> str:
+        if self.kind is NumberKind.FIXED:
+            tok = str(self.count)
+        elif self.kind is NumberKind.FLAG:
+            tok = "FLAG"
+        else:
+            tok = self.kind.value
+        return f"Number({tok})"
 
     def cardinality(self, n_alt: int, ploidy: int) -> int | None:
         k = self.kind

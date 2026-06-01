@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from .._repr import CompactRepr, override
 from .number import Number, NumberKind
 from .types import Type
 
@@ -11,7 +12,7 @@ _KINDS = ("INFO", "FORMAT")
 
 
 @dataclass(frozen=True)
-class FieldDef:
+class FieldDef(CompactRepr):
     id: str
     number: Number
     type: Type
@@ -30,6 +31,13 @@ class FieldDef:
                 raise ValueError("Flag fields must have Number=0")
         elif self.number.kind is NumberKind.FLAG:
             raise ValueError("Number=0 is only valid for Flag fields")
+
+    @override
+    def __repr__(self) -> str:
+        return (
+            f"FieldDef({self.id} {self.kind} "
+            f"Number={self.number.header_str()} Type={self.type.value})"
+        )
 
     def header_line(self) -> str:
         return (
