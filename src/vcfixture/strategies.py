@@ -9,6 +9,7 @@ from ._spec.types import Type
 from .build import VcfBuilder
 from .model import VcfDocument
 from .reference import ReferenceBuilder, ReferenceSpec
+from .truth import GroundTruth
 from .variants import deletion, delins, insertion, mnp, snp, spanning_deletion
 
 
@@ -372,3 +373,35 @@ def documents(
         b.record("chr1", pos, ref=ref, alt=alts, gt=gts)
         pos += draw(st.integers(1, 50))
     return b.build()
+
+
+@st.composite
+def reference_and_documents(
+    draw: DrawFn,
+    *,
+    max_samples: int = 3,
+    max_records: int = 4,
+    violations: frozenset[str] = frozenset(),
+    label_overrides: dict[str, str] | None = None,
+    max_contigs: int = 2,
+    max_contig_len: int = 2000,
+    max_repeats: int = 3,
+) -> tuple[ReferenceSpec, VcfDocument, GroundTruth]:
+    """Draw a consistent ``(ReferenceSpec, VcfDocument, GroundTruth)``."""
+    spec = draw(
+        references(
+            max_contigs=max_contigs,
+            max_contig_len=max_contig_len,
+            max_repeats=max_repeats,
+        )
+    )
+    doc = draw(
+        documents(
+            max_samples=max_samples,
+            max_records=max_records,
+            reference=spec,
+            violations=violations,
+            label_overrides=label_overrides,
+        )
+    )
+    return spec, doc, doc.truth()

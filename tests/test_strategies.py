@@ -102,3 +102,15 @@ def test_reference_consistent_and_labeled(data):
 def test_documents_back_compat_unlabeled(doc):
     # Reference-free documents still work and carry no labels.
     assert all(r.labels == frozenset() for r in doc.records)
+
+
+@settings(max_examples=30, suppress_health_check=[HealthCheck.too_slow])
+@given(S.reference_and_documents())
+def test_reference_and_documents_tuple(triple):
+    spec, doc, truth = triple
+    assert isinstance(spec, ReferenceSpec)
+    assert truth.genotypes.shape[0] == len(doc.records)
+    # Default (no violations) -> reference-consistent, unlabeled.
+    for rec in doc.records:
+        assert spec.seq(rec.chrom, rec.pos - 1, len(rec.ref)) == rec.ref
+        assert rec.labels == frozenset()
