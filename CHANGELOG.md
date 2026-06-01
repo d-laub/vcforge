@@ -1,3 +1,17 @@
+## v0.5.0 (2026-06-01)
+
+### Feat
+
+- compact RepeatFeature/ReferenceSpec reprs
+- compact ContigDef/Record/VcfDocument reprs
+- compact Genotype repr
+- compact FieldDef repr
+- add CompactRepr mixin and compact Number repr
+
+### Fix
+
+- stop Number ClassVar singletons leaking into dataclass fields
+
 ## v0.4.1 (2026-06-01)
 
 ### Fix
