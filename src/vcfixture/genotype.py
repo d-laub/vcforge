@@ -3,11 +3,13 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from ._repr import CompactRepr, override
+
 _TOKEN_RE = re.compile(r"([|/])")
 
 
 @dataclass(frozen=True)
-class Genotype:
+class Genotype(CompactRepr):
     alleles: tuple[int | None, ...]  # None == missing allele
     phased: tuple[bool, ...]  # one per separator; len == len(alleles) - 1
 
@@ -39,3 +41,7 @@ class Genotype:
             chars.append(sep)
             chars.append(allele)
         return "".join(chars)
+
+    @override
+    def __repr__(self) -> str:
+        return f"Genotype({self.render()})"

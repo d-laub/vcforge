@@ -3,6 +3,7 @@ from hypothesis.vendor.pretty import pretty
 from vcfixture._spec.fielddef import FieldDef
 from vcfixture._spec.number import Number
 from vcfixture._spec.types import Type
+from vcfixture.genotype import Genotype
 
 
 def test_number_singletons_not_in_dataclass_fields():
@@ -48,3 +49,9 @@ def test_fielddef_repr_compact():
         id="DP", number=Number.ONE, type=Type.INTEGER, description="Depth", kind="INFO"
     )
     assert repr(dp) == "FieldDef(DP INFO Number=1 Type=Integer)"
+
+
+def test_genotype_repr_compact():
+    assert repr(Genotype((0, 1), (True,))) == "Genotype(0|1)"
+    assert repr(Genotype((0, 1), (False,))) == "Genotype(0/1)"
+    assert repr(Genotype((None, None), (False,))) == "Genotype(./.)"
