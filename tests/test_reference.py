@@ -98,3 +98,16 @@ def test_referencespec_write_plain(tmp_path):
     assert out.exists()
     with pysam.FastaFile(str(out)) as fa:
         assert fa.fetch("chr1", 0, 80).upper() == spec.seq("chr1", 0, 80)
+
+
+def test_referencespec_draw_ref_alt_matches_sequence():
+    spec = (
+        ReferenceBuilder(seed=5)
+        .add_contig("chr1", 100)
+        .set_seq("chr1", 10, "ACGT")
+        .build()
+    )
+    ref, alts = spec.draw_ref_alt("chr1", pos0=10, klass="SNP", alt_index=1)
+    assert ref == "A" and len(alts) == 1 and alts[0] != "A"
+    dref, dalts = spec.draw_ref_alt("chr1", pos0=10, klass="DEL", del_len=2)
+    assert dref == spec.seq("chr1", 10, 3) and dalts == [dref[0]]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,6 +11,40 @@ from ._typing import StrPath
 
 _BASES = "ACGT"
 _BASES_ARR = np.frombuffer(b"ACGT", dtype="S1")
+
+
+def _draw_ref_alt(
+    base_fn: Callable[[str, int], str],
+    seq_fn: Callable[[str, int, int], str],
+    contig: str,
+    pos0: int,
+    klass: str,
+    *,
+    alt_index: int = 1,
+    del_len: int = 1,
+    ins_seq: str = "T",
+    mnp_len: int = 2,
+) -> tuple[str, list[str]]:
+    if klass == "SNP":
+        r = base_fn(contig, pos0)
+        alt = _BASES[(_BASES.index(r) + alt_index) % 4]
+        return r, [alt]
+    if klass == "MNP":
+        r = seq_fn(contig, pos0, mnp_len)
+        alt = "".join(_BASES[(_BASES.index(b) + alt_index) % 4] for b in r)
+        return r, [alt]
+    if klass == "INS":
+        anchor = base_fn(contig, pos0)
+        return anchor, [anchor + ins_seq]
+    if klass == "DEL":
+        r = seq_fn(contig, pos0, del_len + 1)
+        return r, [r[0]]
+    if klass == "DELINS":
+        r = seq_fn(contig, pos0, mnp_len)
+        return r, [ins_seq]
+    if klass == "SPANNING_DEL":
+        return base_fn(contig, pos0), ["*"]
+    raise ValueError(f"unknown class {klass!r}")
 
 
 class Reference:
@@ -39,26 +74,17 @@ class Reference:
         ins_seq: str = "T",
         mnp_len: int = 2,
     ) -> tuple[str, list[str]]:
-        if klass == "SNP":
-            r = self.base(contig, pos0)
-            alt = _BASES[(_BASES.index(r) + alt_index) % 4]
-            return r, [alt]
-        if klass == "MNP":
-            r = self.seq(contig, pos0, mnp_len)
-            alt = "".join(_BASES[(_BASES.index(b) + alt_index) % 4] for b in r)
-            return r, [alt]
-        if klass == "INS":
-            anchor = self.base(contig, pos0)
-            return anchor, [anchor + ins_seq]
-        if klass == "DEL":
-            r = self.seq(contig, pos0, del_len + 1)
-            return r, [r[0]]
-        if klass == "DELINS":
-            r = self.seq(contig, pos0, mnp_len)
-            return r, [ins_seq]
-        if klass == "SPANNING_DEL":
-            return self.base(contig, pos0), ["*"]
-        raise ValueError(f"unknown class {klass!r}")
+        return _draw_ref_alt(
+            self.base,
+            self.seq,
+            contig,
+            pos0,
+            klass,
+            alt_index=alt_index,
+            del_len=del_len,
+            ins_seq=ins_seq,
+            mnp_len=mnp_len,
+        )
 
 
 @dataclass(frozen=True)
@@ -117,6 +143,29 @@ class ReferenceSpec:
         if index:
             pysam.faidx(str(path))  # writes <path>.fai (+ .gzi when bgzipped)
         return path
+
+    def draw_ref_alt(
+        self,
+        contig: str,
+        pos0: int,
+        klass: str,
+        *,
+        alt_index: int = 1,
+        del_len: int = 1,
+        ins_seq: str = "T",
+        mnp_len: int = 2,
+    ) -> tuple[str, list[str]]:
+        return _draw_ref_alt(
+            self.base,
+            self.seq,
+            contig,
+            pos0,
+            klass,
+            alt_index=alt_index,
+            del_len=del_len,
+            ins_seq=ins_seq,
+            mnp_len=mnp_len,
+        )
 
 
 class ReferenceBuilder:
