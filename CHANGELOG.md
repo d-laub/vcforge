@@ -1,3 +1,19 @@
+## v0.4.0 (2026-06-01)
+
+### Feat
+
+- export ReferenceBuilder/ReferenceSpec/RepeatFeature; bump 0.3.0
+- reference_and_documents() paired strategy
+- reference-consistent documents() with violation labels
+- references() strategy drawing ReferenceSpec with planted repeats
+- ReferenceSpec.write bgzipped+faidx FASTA
+- ReferenceBuilder/ReferenceSpec with tandem-repeat provenance
+- general per-variant labels carried into GroundTruth
+
+### Refactor
+
+- share draw_ref_alt between Reference and ReferenceSpec
+
 ## v0.2.1 (2026-05-31)
 
 ### Fix
