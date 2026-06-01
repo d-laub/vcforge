@@ -3,6 +3,7 @@ from hypothesis import HealthCheck, given, settings
 from vcfixture import strategies as S
 from vcfixture._spec.number import NumberKind
 from vcfixture.model import VcfDocument
+from vcfixture.reference import ReferenceSpec
 
 
 def test_all_number_type_combos_table_is_exhaustive():
@@ -50,3 +51,15 @@ def test_documents_can_be_multiallelic(doc):
             gt = s["GT"]
             for a in gt.alleles:
                 assert a is None or a <= n_alt
+
+
+@settings(max_examples=50, suppress_health_check=[HealthCheck.too_slow])
+@given(S.references())
+def test_references_are_well_formed(spec: ReferenceSpec):
+    assert isinstance(spec, ReferenceSpec)
+    assert len(spec.contigs) >= 1
+    for _cid, seq in spec.contigs:
+        assert len(seq) >= 1 and set(seq) <= set("ACGT")
+    # planted repeats actually appear at their advertised loci
+    for rf in spec.repeats:
+        assert spec.seq(rf.contig, rf.pos0, rf.length) == rf.motif * rf.count

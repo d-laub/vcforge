@@ -8,6 +8,7 @@ from ._spec.number import Number
 from ._spec.types import Type
 from .build import VcfBuilder
 from .model import VcfDocument
+from .reference import ReferenceBuilder, ReferenceSpec
 from .variants import deletion, delins, insertion, mnp, snp, spanning_deletion
 
 
@@ -181,6 +182,44 @@ def documents_with_fields(
         )
         pos += draw(st.integers(1, 50))
     return b.build()
+
+
+@st.composite
+def references(
+    draw: DrawFn,
+    *,
+    max_contigs: int = 2,
+    max_contig_len: int = 2000,
+    max_repeats: int = 3,
+) -> ReferenceSpec:
+    """Draw a small reference-consistent ``ReferenceSpec`` with optional,
+    non-overlapping planted tandem repeats (advertised on ``spec.repeats``)."""
+    seed = draw(st.integers(min_value=0, max_value=2**32 - 1))
+    rb = ReferenceBuilder(seed=seed)
+
+    n_contigs = draw(st.integers(1, max_contigs))
+    lengths: dict[str, int] = {}
+    for i in range(n_contigs):
+        cid = f"chr{i + 1}"
+        length = draw(st.integers(200, max_contig_len))
+        rb.add_contig(cid, length)
+        lengths[cid] = length
+
+    # Plant repeats with a per-contig cursor so they never overlap.
+    cursor = {cid: 50 for cid in lengths}
+    n_rep = draw(st.integers(0, max_repeats))
+    for _ in range(n_rep):
+        cid = draw(st.sampled_from(list(lengths)))
+        motif = draw(st.text(_BASES, min_size=1, max_size=3))
+        count = draw(st.integers(3, 6))
+        rlen = len(motif) * count
+        pos0 = cursor[cid]
+        if pos0 + rlen + 20 > lengths[cid]:
+            continue
+        rb.tandem_repeat(cid, pos0, motif, count)
+        cursor[cid] = pos0 + rlen + draw(st.integers(20, 60))
+
+    return rb.build()
 
 
 @st.composite
