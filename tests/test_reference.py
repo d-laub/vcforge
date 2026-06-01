@@ -70,3 +70,31 @@ def test_set_seq_out_of_bounds_raises():
     rb = ReferenceBuilder(seed=0).add_contig("chr1", 10)
     with pytest.raises(ValueError):
         rb.set_seq("chr1", 8, "ACGT")  # runs past length 10
+
+
+def test_referencespec_write_roundtrips(tmp_path):
+    spec = (
+        ReferenceBuilder(seed=3)
+        .add_contig("chr1", 300)
+        .add_contig("chr2", 150)
+        .set_seq("chr1", 50, "GATTACA")
+        .build()
+    )
+    out = spec.write(tmp_path / "ref.fa.bgz")
+    assert out.exists()
+    assert (out.parent / (out.name + ".fai")).exists()
+    with pysam.FastaFile(str(out)) as fa:
+        assert fa.fetch("chr1", 50, 57).upper() == "GATTACA"
+        assert fa.fetch("chr1", 0, 300).upper() == spec.seq("chr1", 0, 300)
+        assert fa.references == ("chr1", "chr2") or set(fa.references) == {
+            "chr1",
+            "chr2",
+        }
+
+
+def test_referencespec_write_plain(tmp_path):
+    spec = ReferenceBuilder(seed=4).add_contig("chr1", 80).build()
+    out = spec.write(tmp_path / "ref.fa", bgzip=False)
+    assert out.exists()
+    with pysam.FastaFile(str(out)) as fa:
+        assert fa.fetch("chr1", 0, 80).upper() == spec.seq("chr1", 0, 80)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 import pysam
@@ -95,6 +96,27 @@ class ReferenceSpec:
 
     def seq(self, contig: str, start0: int, length: int) -> str:
         return self._seq_for(contig)[start0 : start0 + length]
+
+    def write(self, path: StrPath, *, bgzip: bool = True, index: bool = True) -> Path:
+        """Write a 60-col FASTA; bgzip + faidx it via pysam. Returns the path."""
+        path = Path(path)
+        text_lines: list[str] = []
+        for cid, seq in self.contigs:
+            text_lines.append(f">{cid}")
+            text_lines.extend(seq[i : i + 60] for i in range(0, len(seq), 60))
+        fasta_text = "\n".join(text_lines) + "\n"
+
+        if bgzip:
+            plain = path.with_name(path.name + ".tmp.fa")
+            plain.write_text(fasta_text)
+            pysam.tabix_compress(str(plain), str(path), force=True)
+            plain.unlink()
+        else:
+            path.write_text(fasta_text)
+
+        if index:
+            pysam.faidx(str(path))  # writes <path>.fai (+ .gzi when bgzipped)
+        return path
 
 
 class ReferenceBuilder:
