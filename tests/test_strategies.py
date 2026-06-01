@@ -1,4 +1,5 @@
 from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 from vcfixture import strategies as S
 from vcfixture._spec.number import NumberKind
@@ -63,3 +64,41 @@ def test_references_are_well_formed(spec: ReferenceSpec):
     # planted repeats actually appear at their advertised loci
     for rf in spec.repeats:
         assert spec.seq(rf.contig, rf.pos0, rf.length) == rf.motif * rf.count
+
+
+@settings(
+    max_examples=40,
+    suppress_health_check=[HealthCheck.too_slow, HealthCheck.filter_too_much],
+)
+@given(st.data())
+def test_reference_consistent_and_labeled(data):
+    spec = data.draw(S.references(max_repeats=3))
+    doc = data.draw(
+        S.documents(
+            reference=spec,
+            violations=frozenset({"multiallelic", "non_atomic", "non_left_aligned"}),
+        )
+    )
+    truth = doc.truth()
+    # Every REF matches the reference sequence at its position.
+    for rec in doc.records:
+        assert spec.seq(rec.chrom, rec.pos - 1, len(rec.ref)) == rec.ref
+    # Records are position-sorted per contig (norm/consensus/gvl require this).
+    last: dict[str, int] = {}
+    for rec in doc.records:
+        assert rec.pos >= last.get(rec.chrom, 0)
+        last[rec.chrom] = rec.pos
+    # truth lines up with the document.
+    assert truth.genotypes.shape[0] == len(doc.records)
+    assert truth.labels == [r.labels for r in doc.records]
+    # Provenance labels only use the known vocabulary.
+    allowed = {"multiallelic", "non_atomic", "off_anchor", "tandem_repeat"}
+    for lbls in truth.labels:
+        assert lbls <= allowed
+
+
+@settings(max_examples=30, suppress_health_check=[HealthCheck.too_slow])
+@given(S.documents())
+def test_documents_back_compat_unlabeled(doc):
+    # Reference-free documents still work and carry no labels.
+    assert all(r.labels == frozenset() for r in doc.records)
