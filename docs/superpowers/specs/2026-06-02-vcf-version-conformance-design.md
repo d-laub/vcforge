@@ -43,9 +43,16 @@ be treated as positive"), which is the tell-tale of a breaking reinterpretation.
 - **Percent-encoding** of special characters: introduced 4.3 (absent in 4.1/4.2).
 - **`Number=R`** terminology: 4.3+.
 - **Spanning-deletion `*` allele**: 4.3+.
-- **Breakend (BND) notation**: 4.2+.
-- **`SVCLAIM`, `CILEN`** reserved INFO: 4.4+.
+- **Breakend (BND) notation**: present since 4.1 (`MATEID`/`PARID` defined in 4.1).
+- **`SVCLAIM`** reserved INFO: genuinely new in 4.4 (no mention in ≤4.3).
+- **`<*>` reference block** (and the `LEN` reserved FORMAT field that describes it):
+  introduced in 4.4.
 - **Localized alleles** (LAA/LR/LAD…): 4.5-only — already out of scope per CLAUDE.md.
+
+Note (corrected during planning against the real `.tex` source): `CILEN` and `PS`
+are **not** 4.4-only. `CILEN` exists since 4.1 (`##INFO=<ID=CILEN,Number=2,…>`,
+a different historical definition); `PS` is defined in 4.1 prose. They are
+therefore `since V4_1` and not gated.
 
 ## What v1 gates (decided)
 
@@ -114,13 +121,20 @@ def reserved(id: str, kind: str, version: VcfVersion = LATEST) -> FieldDef: ...
   `Number=A`, *"Length of structural variant"* for ≥ V4_4. This single resolved
   `FieldDef` drives both the emitted `##INFO` header and the builder's eager
   count-validation (`Number=.` allows any count; `Number=A` requires one per ALT).
-- **Known `since` values:** `SVCLAIM` and `CILEN` are V4_4. All other currently
-  registered fields default to V4_1 **unless the `.tex` specs show a later
-  introduction** — the implementation step verifies each field's introducing
-  version against the reference specs (notably `MATEID`/`PARID` for breakends,
-  `CN`, `LEN`) and sets `since` accordingly. The reference `.tex` files are the
-  authority for this table; they are tracked in `docs/reference/` and consulted
-  during implementation, never parsed at runtime.
+- **`since` table (verified against the tracked `.tex` source during planning):**
+  - `SVCLAIM` (INFO) → `V4_4` (genuinely new in 4.4).
+  - `LEN` (FORMAT) → `V4_4` (describes the `<*>` reference block, a 4.4 feature).
+  - **All other** currently registered reserved fields → `V4_1` (each is defined
+    in the 4.1 spec, whether as a `##INFO`/`##FORMAT` line or in prose).
+  - **Known fidelity limitation (accepted for v1):** a few fields' *definitions*
+    (not availability) shifted across versions — notably `CILEN`
+    (`Number=2`/breakend description in ≤4.3 → `Number=.`/SVLEN description in
+    4.4+). v1 keeps these at their latest definition with `since=V4_1`; only
+    `SVLEN` gets a true version-variant definition. This mirrors the
+    additive-ladder scope (we gate availability + the one SVLEN break, not every
+    historical definition drift).
+  - The reference `.tex` files are the authority for this table; tracked in
+    `docs/reference/`, consulted at author time, never parsed at runtime.
 
 No `truth.py` changes: `_allele_truth` already `abs()`-normalizes SVLEN when
 computing the SV span/END (`truth.py:45`), and the verbatim per-record INFO
