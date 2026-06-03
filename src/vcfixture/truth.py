@@ -3,10 +3,51 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from typing_extensions import assert_never
 
+from .allele import (
+    Allele,
+    BreakendAllele,
+    SequenceAllele,
+    SpanningDeletion,
+    SymbolicAllele,
+    UnspecifiedAllele,
+)
 from .genotype import Genotype
 from .model import VcfDocument
-from .variants import record_class
+from .variants import classify, record_class
+
+
+@dataclass(frozen=True)
+class AlleleTruth:
+    kind: str  # SNP|MNP|INS|DEL|DELINS|SPANNING_DEL|SYMBOLIC|UNSPECIFIED|BND
+    is_sequence: bool  # True iff literal DNA a tool may splice
+    sv_type: str | None  # e.g. "DEL"/"DUP:TANDEM" for symbolic; else None
+    svlen: int | None  # resolved per-allele (absolute); None where undefined
+    sv_end: int | None  # 1-based inclusive end = POS + svlen for DEL/DUP/INV/CNV
+
+
+_SV_SPANNING = frozenset({"DEL", "DUP", "INV", "CNV"})
+
+
+def _allele_truth(ref: str, pos: int, allele: Allele, svlen_val: object) -> AlleleTruth:
+    if isinstance(allele, SequenceAllele):
+        return AlleleTruth(classify(ref, allele.bases), True, None, None, None)
+    if isinstance(allele, SpanningDeletion):
+        return AlleleTruth("SPANNING_DEL", False, None, None, None)
+    if isinstance(allele, UnspecifiedAllele):
+        return AlleleTruth("UNSPECIFIED", False, None, None, None)
+    if isinstance(allele, BreakendAllele):
+        return AlleleTruth("BND", False, None, None, None)
+    if isinstance(allele, SymbolicAllele):
+        svlen = abs(int(svlen_val)) if isinstance(svlen_val, (int, float)) else None
+        end = (
+            pos + svlen
+            if svlen is not None and allele.first_type in _SV_SPANNING
+            else None
+        )
+        return AlleleTruth("SYMBOLIC", False, allele.type_str, svlen, end)
+    assert_never(allele)
 
 
 @dataclass(frozen=True)
@@ -22,6 +63,8 @@ class GroundTruth:
     info: list[dict[str, object]]  # per record: id -> decoded value(s)
     format: list[list[dict[str, object]]]  # per record, per sample: id -> value(s)
     labels: list[frozenset[str]]  # per record
+    alts_truth: list[list[AlleleTruth]]  # per record, per ALT
+    is_sequence_mask: list[np.ndarray]  # per record: bool array over ALTs
 
 
 def derive_truth(doc: VcfDocument) -> GroundTruth:
@@ -38,6 +81,8 @@ def derive_truth(doc: VcfDocument) -> GroundTruth:
     info: list[dict[str, object]] = []
     fmt: list[list[dict[str, object]]] = []
     labels: list[frozenset[str]] = []
+    alts_truth: list[list[AlleleTruth]] = []
+    seq_mask: list[np.ndarray] = []
 
     for ri, rec in enumerate(doc.records):
         pos[ri] = rec.pos
@@ -55,6 +100,19 @@ def derive_truth(doc: VcfDocument) -> GroundTruth:
             per_sample.append({k: v for k, v in sample.items() if k != "GT"})
         fmt.append(per_sample)
         labels.append(rec.labels)
+        svlen_list = rec.info.get("SVLEN")
+        if isinstance(svlen_list, (int, float)):
+            svlen_list = [svlen_list]
+        per_alt: list[AlleleTruth] = []
+        for ai, allele in enumerate(rec.alts):
+            sv = (
+                svlen_list[ai]  # type: ignore[index]
+                if isinstance(svlen_list, (list, tuple)) and ai < len(svlen_list)
+                else None
+            )
+            per_alt.append(_allele_truth(rec.ref, rec.pos, allele, sv))
+        alts_truth.append(per_alt)
+        seq_mask.append(np.array([a.is_sequence for a in per_alt], dtype=bool))
 
     return GroundTruth(
         samples=doc.samples,
@@ -68,4 +126,6 @@ def derive_truth(doc: VcfDocument) -> GroundTruth:
         info=info,
         format=fmt,
         labels=labels,
+        alts_truth=alts_truth,
+        is_sequence_mask=seq_mask,
     )
