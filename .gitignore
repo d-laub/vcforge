@@ -7,3 +7,6 @@ build/
 .hypothesis/
 .pytest_cache/
 .worktrees/
+
+# Zensical build output
+/site/
