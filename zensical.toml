@@ -9,6 +9,9 @@ docs_dir = "docs/site"
 site_dir = "site"
 nav = [
   { "Home" = "index.md" },
+  { "Guide" = [
+      "guide/vcfbuilder.md",
+  ]},
   { "API Reference" = "api/index.md" },
 ]
 
