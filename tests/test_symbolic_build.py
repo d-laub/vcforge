@@ -218,3 +218,15 @@ def test_cn_unequal_svlen_two_alleles_raises():
             info={"SVLEN": [100, 200], "SVCLAIM": ["DJ", "DJ"]},
             CN=[2.0],
         )
+
+
+# ---------------------------------------------------------------------------
+# Consistency guard: _SVCLAIM_RULES key set == _SV_FIRST_TYPES
+# ---------------------------------------------------------------------------
+
+
+def test_svclaim_rules_cover_all_symbolic_types():
+    from vcfixture.allele import _SV_FIRST_TYPES
+    from vcfixture.build import _SVCLAIM_RULES
+
+    assert set(_SVCLAIM_RULES) == set(_SV_FIRST_TYPES)

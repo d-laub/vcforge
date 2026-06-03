@@ -6,7 +6,7 @@ from hypothesis.strategies import DrawFn
 from ._spec.fielddef import FieldDef
 from ._spec.number import Number
 from ._spec.types import Type
-from .allele import SymbolicAllele, UnspecifiedAllele, classify_allele
+from .allele import _SV_FIRST_TYPES, SymbolicAllele, UnspecifiedAllele, classify_allele
 from .build import _SVCLAIM_RULES, VcfBuilder
 from .model import VcfDocument
 from .reference import ReferenceBuilder, ReferenceSpec
@@ -414,7 +414,7 @@ def documents(
     return b.build()
 
 
-_SYMBOLIC_SV = ["DEL", "INS", "DUP", "INV", "CNV"]
+_SYMBOLIC_SV = sorted(_SV_FIRST_TYPES)
 
 
 @st.composite

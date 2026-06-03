@@ -27,6 +27,8 @@ class AlleleTruth:
     sv_end: int | None  # 1-based inclusive end = POS + svlen for DEL/DUP/INV/CNV
 
 
+# Symbolic SV types that have a reference span (=> computed sv_end). Deliberately a
+# subset of allele._SV_FIRST_TYPES, excluding INS (insertion has length but no span).
 _SV_SPANNING = frozenset({"DEL", "DUP", "INV", "CNV"})
 
 
