@@ -8,7 +8,7 @@ from ._spec.fielddef import FieldDef
 from ._spec.number import Number, NumberKind
 from ._spec.reserved import reserved
 from ._spec.types import Type
-from ._spec.version import VcfVersion
+from ._spec.version import LATEST, VcfVersion
 from ._typing import StrPath
 from .allele import (
     Allele,
@@ -50,7 +50,7 @@ class VcfBuilder:
         self,
         samples: Iterable[str],
         contigs: Iterable[tuple[str, int | None]],
-        version: VcfVersion = VcfVersion.V4_5,
+        version: VcfVersion = LATEST,
     ):
         self._samples = tuple(samples)
         self._contigs = tuple(ContigDef(c[0], c[1]) for c in contigs)

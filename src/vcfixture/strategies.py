@@ -6,7 +6,7 @@ from hypothesis.strategies import DrawFn
 from ._spec.fielddef import FieldDef
 from ._spec.number import Number
 from ._spec.types import Type
-from ._spec.version import VcfVersion
+from ._spec.version import LATEST, VcfVersion
 from .allele import _SV_FIRST_TYPES, SymbolicAllele, UnspecifiedAllele, classify_allele
 from .build import _SVCLAIM_RULES, VcfBuilder
 from .model import VcfDocument
@@ -348,7 +348,7 @@ def documents(
     reference: ReferenceSpec | None = None,
     violations: frozenset[str] = frozenset(),
     label_overrides: dict[str, str] | None = None,
-    version: VcfVersion = VcfVersion.V4_5,
+    version: VcfVersion = LATEST,
 ) -> VcfDocument:
     """Draw a small ``VcfDocument`` over a synthetic contig.
 
@@ -433,7 +433,7 @@ def symbolic_documents(
     draw: DrawFn,
     max_samples: int = 3,
     max_records: int = 4,
-    version: VcfVersion = VcfVersion.V4_5,
+    version: VcfVersion = LATEST,
 ) -> VcfDocument:
     """Documents whose records carry symbolic SV alleles and <*>, with consistent
     per-allele SVLEN/SVCLAIM. Reference-free (arbitrary single REF base)."""
@@ -484,7 +484,7 @@ def reference_and_documents(
     max_contigs: int = 2,
     max_contig_len: int = 2000,
     max_repeats: int = 3,
-    version: VcfVersion = VcfVersion.V4_5,
+    version: VcfVersion = LATEST,
 ) -> tuple[ReferenceSpec, VcfDocument, GroundTruth]:
     """Draw a consistent ``(ReferenceSpec, VcfDocument, GroundTruth)``."""
     spec = draw(
