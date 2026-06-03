@@ -6,6 +6,7 @@ from hypothesis.strategies import DrawFn
 from ._spec.fielddef import FieldDef
 from ._spec.number import Number
 from ._spec.types import Type
+from ._spec.version import LATEST, VcfVersion
 from .allele import _SV_FIRST_TYPES, SymbolicAllele, UnspecifiedAllele, classify_allele
 from .build import _SVCLAIM_RULES, VcfBuilder
 from .model import VcfDocument
@@ -287,6 +288,7 @@ def _reference_documents(
     label_overrides: dict[str, str] | None,
     max_samples: int,
     max_records: int,
+    version: VcfVersion,
 ) -> VcfDocument:
     def lbl(key: str) -> str:
         base = _DEFAULT_LABELS[key]
@@ -308,6 +310,7 @@ def _reference_documents(
     b = VcfBuilder(
         samples=samples,
         contigs=[(cid, reference.length(cid)) for cid, _ in reference.contigs],
+        version=version,
     ).fmt("GT")
 
     enabled = [
@@ -392,6 +395,7 @@ def documents(
     reference: ReferenceSpec | None = None,
     violations: frozenset[str] = frozenset(),
     label_overrides: dict[str, str] | None = None,
+    version: VcfVersion = LATEST,
 ) -> VcfDocument:
     """Draw a small ``VcfDocument`` over a synthetic contig.
 
@@ -434,14 +438,21 @@ def documents(
     if reference is not None:
         return draw(
             _reference_documents(
-                reference, violations, label_overrides, max_samples, max_records
+                reference,
+                violations,
+                label_overrides,
+                max_samples,
+                max_records,
+                version,
             )
         )
     # --- existing reference-free body continues unchanged below ---
     n_samples = draw(st.integers(1, max_samples))
     samples = [f"s{i}" for i in range(n_samples)]
     ploidy = draw(st.integers(1, 2))
-    b = VcfBuilder(samples=samples, contigs=[("chr1", 100000)]).fmt("GT")
+    b = VcfBuilder(samples=samples, contigs=[("chr1", 100000)], version=version).fmt(
+        "GT"
+    )
 
     n_rec = draw(st.integers(1, max_records))
     pos = 1000
@@ -466,7 +477,10 @@ _SYMBOLIC_SV = sorted(_SV_FIRST_TYPES)
 
 @st.composite
 def symbolic_documents(
-    draw: DrawFn, max_samples: int = 3, max_records: int = 4
+    draw: DrawFn,
+    max_samples: int = 3,
+    max_records: int = 4,
+    version: VcfVersion = LATEST,
 ) -> VcfDocument:
     """Draw a ``VcfDocument`` whose records carry symbolic SV alleles.
 
@@ -484,12 +498,14 @@ def symbolic_documents(
     n_samples = draw(st.integers(1, max_samples))
     samples = [f"s{i}" for i in range(n_samples)]
     ploidy = draw(st.integers(1, 2))
+    has_svclaim = version >= VcfVersion.V4_4
     b = (
-        VcfBuilder(samples=samples, contigs=[("chr1", 1_000_000)])
+        VcfBuilder(samples=samples, contigs=[("chr1", 1_000_000)], version=version)
         .fmt("GT")
-        .info("SVLEN", Number.A, Type.INTEGER)
-        .info("SVCLAIM", Number.A, Type.STRING)
+        .info("SVLEN")  # version-correct Number/description from the registry
     )
+    if has_svclaim:
+        b.info("SVCLAIM")
     n_rec = draw(st.integers(1, max_records))
     pos = 1000
     for _ in range(n_rec):
@@ -499,10 +515,16 @@ def symbolic_documents(
             alts: list[SymbolicAllele | UnspecifiedAllele] = [UnspecifiedAllele()]
             info: dict[str, object] = {}
         else:
-            svlen = draw(st.integers(1, 1000))
-            claim = draw(st.sampled_from(sorted(_SVCLAIM_RULES[kind])))
+            magnitude = draw(st.integers(1, 1000))
+            # <= 4.3: SVLEN is the signed REF/ALT length difference (DEL negative).
+            # >= 4.4: SVLEN is an unsigned length.
+            is_pre_44_del = kind == "DEL" and version < VcfVersion.V4_4
+            svlen = -magnitude if is_pre_44_del else magnitude
             alts = [SymbolicAllele(kind)]
-            info = {"SVLEN": [svlen], "SVCLAIM": [claim]}
+            info = {"SVLEN": [svlen]}
+            if has_svclaim:
+                claim = draw(st.sampled_from(sorted(_SVCLAIM_RULES[kind])))
+                info["SVCLAIM"] = [claim]
         gts = [draw(genotypes(ploidy, n_alt=1)) for _ in samples]
         b.record("chr1", pos, ref=ref, alt=alts, gt=gts, info=info)
         pos += draw(st.integers(2000, 5000))
@@ -520,6 +542,7 @@ def reference_and_documents(
     max_contigs: int = 2,
     max_contig_len: int = 2000,
     max_repeats: int = 3,
+    version: VcfVersion = LATEST,
 ) -> tuple[ReferenceSpec, VcfDocument, GroundTruth]:
     """Draw a consistent ``(ReferenceSpec, VcfDocument, GroundTruth)`` triple.
 
@@ -552,6 +575,7 @@ def reference_and_documents(
             reference=spec,
             violations=violations,
             label_overrides=label_overrides,
+            version=version,
         )
     )
     return spec, doc, doc.truth()
