@@ -75,7 +75,7 @@ def _render_sample(rec: Record, sample: Mapping[str, Any]) -> str:
 
 def _render_record(rec: Record) -> str:
     ids = ";".join(rec.ids) if rec.ids else "."
-    alt = ",".join(rec.alts) if rec.alts else "."
+    alt = ",".join(a.render() for a in rec.alts) if rec.alts else "."
     qual = "." if rec.qual is None else _fmt_scalar(rec.qual)
     if rec.filters is None:
         filt = "."
@@ -101,6 +101,8 @@ def render_document(doc: VcfDocument) -> str:
         lines.append(f'##FILTER=<ID={fid},Description="{desc}">')
     for f in doc.format_defs:
         lines.append(f.header_line())
+    for ad in doc.alt_defs:
+        lines.append(ad.header_line())
     header = ["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO"]
     if doc.format_defs or any(r.fmt_keys for r in doc.records):
         header.append("FORMAT")

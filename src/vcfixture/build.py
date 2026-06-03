@@ -9,11 +9,39 @@ from ._spec.number import Number, NumberKind
 from ._spec.reserved import reserved
 from ._spec.types import Type
 from ._typing import StrPath
+from .allele import (
+    Allele,
+    BreakendAllele,
+    SpanningDeletion,
+    SymbolicAllele,
+    UnspecifiedAllele,
+)
 from .genotype import Genotype
-from .model import ContigDef, Record, VcfDocument
+from .model import AltDef, ContigDef, Record, VcfDocument
 
 if TYPE_CHECKING:
     from .truth import GroundTruth
+
+_SVCLAIM_RULES: dict[str, frozenset[str]] = {
+    "DEL": frozenset({"D", "J", "DJ"}),
+    "DUP": frozenset({"D", "J", "DJ"}),
+    "CNV": frozenset({"D"}),
+    "INS": frozenset({"J"}),
+    "INV": frozenset({"J"}),
+}
+_SVCLAIM_REQUIRED = frozenset({"DEL", "DUP"})
+_CN_SVLEN_TYPES = frozenset({"CNV", "DEL", "DUP"})
+
+
+def _per_allele(value: object, i: int) -> object:
+    """Resolve the i-th per-allele entry of a Number=A info value.
+
+    A scalar is treated as the single (index-0) value; a short/missing list
+    yields None.
+    """
+    if isinstance(value, (list, tuple)):
+        return value[i] if i < len(value) else None  # type: ignore[arg-type]
+    return value if i == 0 else None
 
 
 class VcfBuilder:
@@ -29,6 +57,7 @@ class VcfBuilder:
         self._info_defs: dict[str, FieldDef] = {}
         self._format_defs: dict[str, FieldDef] = {}
         self._filter_defs: list[tuple[str, str]] = []
+        self._alt_defs: dict[str, str] = {}
         self._records: list[Record] = []
 
     def info(
@@ -55,6 +84,10 @@ class VcfBuilder:
         self._filter_defs.append((id, description))
         return self
 
+    def alt(self, id: str, description: str) -> VcfBuilder:
+        self._alt_defs[id] = description
+        return self
+
     @staticmethod
     def _make_def(
         id: str,
@@ -73,13 +106,48 @@ class VcfBuilder:
                 ) from None
         return FieldDef(id, number, type, description or id, kind)
 
+    @staticmethod
+    def _validate_alleles(
+        ref: str,
+        alts: tuple[Allele, ...],
+        info: Mapping[str, object] | None,
+    ) -> None:
+        info = info or {}
+        svlen = info.get("SVLEN")
+        svclaim = info.get("SVCLAIM")
+        needs_padding = any(
+            isinstance(a, (SymbolicAllele, BreakendAllele)) for a in alts
+        )
+        if needs_padding and len(ref) != 1:
+            raise ValueError(
+                "symbolic/breakend ALT requires a single preceding REF padding base, "
+                f"got REF={ref!r}"
+            )
+        for i, a in enumerate(alts):
+            sv = _per_allele(svlen, i)
+            cl = _per_allele(svclaim, i)
+            if isinstance(a, SymbolicAllele):
+                if sv is None:
+                    raise ValueError(f"SVLEN required for symbolic allele {a.render()}")
+                allowed = _SVCLAIM_RULES[a.first_type]
+                if cl is not None and cl not in allowed:
+                    raise ValueError(
+                        f"SVCLAIM {cl!r} invalid for {a.render()}; "
+                        f"allowed {sorted(allowed)}"
+                    )
+                if a.first_type in _SVCLAIM_REQUIRED and cl is None:
+                    raise ValueError(f"SVCLAIM required for {a.render()} (D/J/DJ)")
+            elif isinstance(a, (BreakendAllele, UnspecifiedAllele, SpanningDeletion)):
+                if sv is not None:
+                    raise ValueError(f"SVLEN must be missing for {a.render()}")
+
     def record(
         self,
         chrom: str,
         pos: int,
         *,
         ref: str,
-        alt: Sequence[str],
+        alt: Sequence[Allele],
         ids: Iterable[str] | None = None,
         qual: float | None = None,
         filter: Iterable[str] | None = None,
@@ -90,6 +158,7 @@ class VcfBuilder:
     ) -> VcfBuilder:
         alts = tuple(alt)
         n_alt = len(alts)
+        self._validate_alleles(ref, alts, info)
 
         fmt_keys: list[str] = []
         samples: list[dict[str, Any]] = []
@@ -146,6 +215,18 @@ class VcfBuilder:
                     )
                 info_dict[key] = val
 
+        if "CN" in fmt_keys:
+            svlen_val = (info or {}).get("SVLEN")
+            cn_svlens = {
+                _per_allele(svlen_val, i)
+                for i, a in enumerate(alts)
+                if isinstance(a, SymbolicAllele) and a.first_type in _CN_SVLEN_TYPES
+            }
+            if len(cn_svlens) > 1:
+                raise ValueError(
+                    "FORMAT CN requires equal SVLEN across <CNV>/<DEL>/<DUP> alleles"
+                )
+
         self._records.append(
             Record(
                 chrom=chrom,
@@ -164,6 +245,14 @@ class VcfBuilder:
         return self
 
     def build(self) -> VcfDocument:
+        # Auto-describe each symbolic ALT type; explicit .alt() overrides then win.
+        alt_ids: dict[str, str] = {}
+        for rec in self._records:
+            for a in rec.alts:
+                if isinstance(a, SymbolicAllele):
+                    alt_ids.setdefault(a.type_str, f"{a.type_str} structural variant")
+        alt_ids.update(self._alt_defs)
+        alt_defs = tuple(AltDef(i, d) for i, d in alt_ids.items())
         return VcfDocument(
             fileformat=self._fileformat,
             info_defs=tuple(self._info_defs.values()),
@@ -172,6 +261,7 @@ class VcfBuilder:
             contigs=self._contigs,
             samples=self._samples,
             records=tuple(self._records),
+            alt_defs=alt_defs,
         )
 
     def render(self) -> str:

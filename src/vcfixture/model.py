@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 from ._repr import CompactRepr, override
 from ._spec.fielddef import FieldDef
 from ._typing import StrPath
+from .allele import Allele
 from .genotype import Genotype
 
 if TYPE_CHECKING:
@@ -32,12 +33,25 @@ class ContigDef(CompactRepr):
 
 
 @dataclass(frozen=True)
+class AltDef(CompactRepr):
+    id: str
+    description: str
+
+    @override
+    def __repr__(self) -> str:
+        return f"AltDef({self.id})"
+
+    def header_line(self) -> str:
+        return f'##ALT=<ID={self.id},Description="{self.description}">'
+
+
+@dataclass(frozen=True)
 class Record(CompactRepr):
     chrom: str
     pos: int  # 1-based
     ids: tuple[str, ...] | None  # None -> "."
     ref: str
-    alts: tuple[str, ...]  # may contain "*"
+    alts: tuple[Allele, ...]  # typed; may include SpanningDeletion()/symbolic/...
     qual: float | None
     filters: tuple[str, ...] | None  # None -> "."; () -> "PASS"
     info: Mapping[str, Any]  # id -> value(s); Flag -> True
@@ -47,7 +61,7 @@ class Record(CompactRepr):
 
     @override
     def __repr__(self) -> str:
-        alts = ",".join(self.alts) if self.alts else "."
+        alts = ",".join(a.render() for a in self.alts) if self.alts else "."
         out = f"Record({self.chrom}:{self.pos} {self.ref}>{alts} ×{len(self.samples)}"
         if self.labels:
             out += f" [{','.join(sorted(self.labels))}]"
@@ -67,6 +81,7 @@ class VcfDocument(CompactRepr):
     contigs: tuple[ContigDef, ...]
     samples: tuple[str, ...]
     records: tuple[Record, ...]
+    alt_defs: tuple[AltDef, ...] = ()
 
     @override
     def __repr__(self) -> str:
