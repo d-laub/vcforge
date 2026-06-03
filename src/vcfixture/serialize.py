@@ -101,6 +101,8 @@ def render_document(doc: VcfDocument) -> str:
         lines.append(f'##FILTER=<ID={fid},Description="{desc}">')
     for f in doc.format_defs:
         lines.append(f.header_line())
+    for ad in doc.alt_defs:
+        lines.append(ad.header_line())
     header = ["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO"]
     if doc.format_defs or any(r.fmt_keys for r in doc.records):
         header.append("FORMAT")

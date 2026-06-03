@@ -33,6 +33,19 @@ class ContigDef(CompactRepr):
 
 
 @dataclass(frozen=True)
+class AltDef(CompactRepr):
+    id: str
+    description: str
+
+    @override
+    def __repr__(self) -> str:
+        return f"AltDef({self.id})"
+
+    def header_line(self) -> str:
+        return f'##ALT=<ID={self.id},Description="{self.description}">'
+
+
+@dataclass(frozen=True)
 class Record(CompactRepr):
     chrom: str
     pos: int  # 1-based
@@ -68,6 +81,7 @@ class VcfDocument(CompactRepr):
     contigs: tuple[ContigDef, ...]
     samples: tuple[str, ...]
     records: tuple[Record, ...]
+    alt_defs: tuple[AltDef, ...] = ()
 
     @override
     def __repr__(self) -> str:

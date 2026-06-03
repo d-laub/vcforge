@@ -17,7 +17,7 @@ from .allele import (
     UnspecifiedAllele,
 )
 from .genotype import Genotype
-from .model import ContigDef, Record, VcfDocument
+from .model import AltDef, ContigDef, Record, VcfDocument
 
 if TYPE_CHECKING:
     from .truth import GroundTruth
@@ -57,6 +57,7 @@ class VcfBuilder:
         self._info_defs: dict[str, FieldDef] = {}
         self._format_defs: dict[str, FieldDef] = {}
         self._filter_defs: list[tuple[str, str]] = []
+        self._alt_defs: dict[str, str] = {}
         self._records: list[Record] = []
 
     def info(
@@ -81,6 +82,10 @@ class VcfBuilder:
 
     def filter(self, id: str, description: str) -> VcfBuilder:
         self._filter_defs.append((id, description))
+        return self
+
+    def alt(self, id: str, description: str) -> VcfBuilder:
+        self._alt_defs[id] = description
         return self
 
     @staticmethod
@@ -240,6 +245,14 @@ class VcfBuilder:
         return self
 
     def build(self) -> VcfDocument:
+        # Auto-describe each symbolic ALT type; explicit .alt() overrides then win.
+        alt_ids: dict[str, str] = {}
+        for rec in self._records:
+            for a in rec.alts:
+                if isinstance(a, SymbolicAllele):
+                    alt_ids.setdefault(a.type_str, f"{a.type_str} structural variant")
+        alt_ids.update(self._alt_defs)
+        alt_defs = tuple(AltDef(i, d) for i, d in alt_ids.items())
         return VcfDocument(
             fileformat=self._fileformat,
             info_defs=tuple(self._info_defs.values()),
@@ -248,6 +261,7 @@ class VcfBuilder:
             contigs=self._contigs,
             samples=self._samples,
             records=tuple(self._records),
+            alt_defs=alt_defs,
         )
 
     def render(self) -> str:
