@@ -1,6 +1,9 @@
 # vcfixture
 
-Generate small VCF (v4.5) test data — via an explicit builder or Hypothesis
+[![PyPI version](https://img.shields.io/pypi/v/vcfixture.svg)](https://pypi.org/project/vcfixture/)
+[![Docs](https://img.shields.io/badge/docs-d--laub.github.io%2Fvcfixture-blue.svg)](https://d-laub.github.io/vcfixture/)
+
+Generate small VCF (v4.x) test data — via an explicit builder or Hypothesis
 strategies — with the decoded ground truth returned alongside, so parser tests
 assert against a known oracle instead of hand-coded literals.
 
@@ -18,5 +21,6 @@ truth = doc.truth()                        # GroundTruth (numpy genotypes, ...)
 doc.write("x.vcf.gz", bgzip=True, index=True)
 ```
 
-See `docs/superpowers/specs/2026-05-30-vcfixture-design.md` for the design, and
-[CONTRIBUTING.md](CONTRIBUTING.md) for development setup (uv is required).
+See the [full documentation](https://d-laub.github.io/vcfixture/) for guides and
+API reference, and [CONTRIBUTING.md](CONTRIBUTING.md) for development setup (uv
+is required).

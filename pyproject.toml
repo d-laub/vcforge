@@ -5,7 +5,7 @@ build-backend = "uv_build"
 [project]
 name = "vcfixture"
 version = "0.5.0"
-description = "Generate small VCF (v4.5) test data with decoded ground truth."
+description = "Generate small VCF (v4.x) test data with decoded ground truth."
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
